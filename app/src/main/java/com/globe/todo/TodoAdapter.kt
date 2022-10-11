@@ -10,9 +10,19 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder
 
 class TodoAdapter : RecyclerView.Adapter<TodoAdapter.TodoViewHolder>() {
 
-    var items: ArrayList<Todo>? = null
-    set(value) {
-        field = value
+    //Call this function when a TODO is removed
+    var onItemDeleted: ((position: Int) -> Unit)? = null
+    var onItemUpdated: ((position: Int) -> Unit)? = null
+
+    var todos: ArrayList<Todo>? = null
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+
+
+    fun addTodo(todo: Todo) {
+        todos?.add(todo)
         notifyDataSetChanged()
     }
 
@@ -23,26 +33,49 @@ class TodoAdapter : RecyclerView.Adapter<TodoAdapter.TodoViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: TodoViewHolder, position: Int) {
-        val todo = items!!.get(position)
-        holder.todo.text = todo.task
+        val todo = todos!![position]
+        holder.todoCheckBox.text = todo.task
+        holder.todoCheckBox.isChecked = todo.done
 
+        if (todo.done) {
+            holder.todoCheckBox.alpha = 0.7f
+        } else {
+            holder.todoCheckBox.alpha = 1f
+        }
     }
 
     override fun getItemCount(): Int {
-        return items?.size ?: 0
+        return todos?.size ?: 0
     }
 
     inner class TodoViewHolder(itemView: View) : ViewHolder(itemView) {
-        lateinit var todo: CheckBox
+        lateinit var todoCheckBox: CheckBox
         lateinit var ibRemove: ImageButton
 
         init {
-            todo = itemView.findViewById(R.id.tvTask)
+            todoCheckBox = itemView.findViewById(R.id.tvTask)
             ibRemove = itemView.findViewById(R.id.ibRemove)
 
+            todoCheckBox.setOnCheckedChangeListener { buttonView, isChecked ->
+                val todo = todos?.get(adapterPosition)
+                todo?.done = isChecked
+
+                if (todo != null) {
+                    runCatching {
+                        todos?.set(adapterPosition, todo)
+                        onItemUpdated?.invoke(adapterPosition)
+                        notifyItemChanged(adapterPosition)
+                    }
+                }
+            }
+
             ibRemove.setOnClickListener {
+
                 runCatching {
-                    items?.removeAt(adapterPosition)
+                    //Pass the position of item to be remove to
+                    //MainActivity
+                    onItemDeleted?.invoke(adapterPosition)
+                    todos?.removeAt(adapterPosition)
                     notifyItemRemoved(adapterPosition)
                 }.onFailure {
                     it.printStackTrace()
